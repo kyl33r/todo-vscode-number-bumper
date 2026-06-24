@@ -5,6 +5,14 @@
   "version": "0.1.0",
   "publisher": "local-dev",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kyl33r/todo-vscode-number-bumper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kyl33r/todo-vscode-number-bumper/issues"
+  },
+  "homepage": "https://github.com/kyl33r/todo-vscode-number-bumper#readme",
   "keywords": [
     "todo",
     "comments",
@@ -80,7 +88,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
-    "package": "vsce package --allow-missing-repository",
+    "package": "vsce package",
     "package:list": "vsce ls",
     "publish:marketplace": "vsce publish"
   },

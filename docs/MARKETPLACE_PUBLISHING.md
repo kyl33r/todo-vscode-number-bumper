@@ -1,6 +1,6 @@
 # Publishing to the VS Code Marketplace
 
-This repo is technically packageable today, but publishing requires a real Visual Studio Marketplace publisher identity and authentication token controlled by the maintainer.
+This repo is technically packageable today, but publishing requires a Visual Studio Marketplace publisher identity and authentication token controlled by the maintainer.
 
 Official docs:
 
@@ -10,36 +10,35 @@ Official docs:
 
 ## Current Repo Status
 
-- Local package works: `npm run package`.
-- Local VSIX install works: `code --install-extension todo-vscode-number-bumper-0.1.0.vsix --force`.
-- Extension-host tests pass: `npm test`.
-- Production dependency audit is clean: `npm audit --omit=dev`.
-- `package.json` still uses the placeholder publisher `local-dev`; replace it before publishing.
-- The package is currently marked `UNLICENSED`; choose a public license or keep an explicit proprietary license before publishing publicly.
+- `package.json` uses publisher candidate `kyl33r`.
+- `package.json` uses MIT license metadata.
+- `LICENSE` contains the MIT license text.
+- Before publishing, verify that Marketplace publisher `kyl33r` exists or update `package.json` to the exact publisher ID you create.
+- Run the full verification checklist after the final commit.
 
 ## One-Time Marketplace Setup
 
 1. Sign in with a Microsoft account.
 2. Create or select an Azure DevOps organization.
-3. Create a Marketplace publisher at:
+3. Create or select Marketplace publisher `kyl33r` at:
 
    ```txt
    https://marketplace.visualstudio.com/manage
    ```
 
-4. Pick the publisher ID carefully. It becomes part of the extension identifier and URL, and the ID cannot be changed after creation.
+4. Pick the publisher ID carefully. It becomes part of the extension identifier and URL, and the ID cannot be changed after creation. If `kyl33r` is unavailable, update `package.json` to the exact publisher ID you choose.
 5. Create a Personal Access Token in Azure DevOps with Marketplace `Manage` scope.
 
 Important: official VS Code docs say global Azure DevOps PATs retire on December 1, 2026. PAT publishing still works today, but CI/CD should move to Microsoft Entra ID based publishing.
 
-## Repo Changes Before First Public Publish
+## Repo Check Before First Public Publish
 
-Update `package.json`:
+Confirm `package.json` matches the Marketplace publisher ID:
 
 ```json
 {
-  "publisher": "<your-marketplace-publisher-id>",
-  "license": "SEE LICENSE IN LICENSE"
+  "publisher": "kyl33r",
+  "license": "MIT"
 }
 ```
 
@@ -68,7 +67,7 @@ Install the generated VSIX locally:
 
 ```sh
 code --install-extension todo-vscode-number-bumper-0.1.0.vsix --force
-code --list-extensions --show-versions | rg '<your-marketplace-publisher-id>\.todo-vscode-number-bumper@'
+code --list-extensions --show-versions | rg 'kyl33r\.todo-vscode-number-bumper@'
 ```
 
 Run the manual smoke test in `VERIFICATION.md`.
@@ -78,7 +77,7 @@ Run the manual smoke test in `VERIFICATION.md`.
 Authenticate:
 
 ```sh
-npx vsce login <your-marketplace-publisher-id>
+npx vsce login kyl33r
 ```
 
 When prompted, paste the Azure DevOps PAT. Do not commit the token.
@@ -115,7 +114,7 @@ If CLI authentication is inconvenient:
 Confirm the Marketplace page is live, then test a clean install:
 
 ```sh
-code --install-extension <your-marketplace-publisher-id>.todo-vscode-number-bumper
+code --install-extension kyl33r.todo-vscode-number-bumper
 ```
 
 Users can also search for `TODO VS Code Number Bumper` in the VS Code Extensions view.

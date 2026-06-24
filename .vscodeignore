@@ -8,3 +8,6 @@ out/test/**
 tsconfig.json
 **/*.map
 node_modules/**
+*.vsix
+*.tgz
+.todo-verbose/**

@@ -28,6 +28,7 @@ Use this checklist after code changes to verify the extension and prove it can b
 
    ```sh
    node ./out/src/cli.js scan . --json
+   node ./out/src/cli.js handoff . --prompt-only
    ```
 
 6. Package a local VSIX:
@@ -49,13 +50,13 @@ code --install-extension todo-vscode-number-bumper-0.1.0.vsix --force
 Confirm the extension is installed:
 
 ```sh
-code --list-extensions --show-versions | rg '^local-dev\.todo-vscode-number-bumper@'
+code --list-extensions --show-versions | rg '^kyl33r\.todo-vscode-number-bumper@'
 ```
 
 Uninstall after manual verification if desired:
 
 ```sh
-code --uninstall-extension local-dev.todo-vscode-number-bumper
+code --uninstall-extension kyl33r.todo-vscode-number-bumper
 ```
 
 ## Manual Smoke Test
@@ -134,3 +135,27 @@ code --uninstall-extension local-dev.todo-vscode-number-bumper
 7. Enable `todoNumbers.autoRenumberOnSave`, edit and save the file, and verify the TODO numbers are still unchanged.
 
 These checks cover installability, command activation, parser behavior, pinned TODO handling, insertion, and save-triggered renumbering.
+
+## Agent Handoff Smoke Test
+
+1. Create a scratch workspace with at least one numbered TODO.
+2. Run:
+
+   ```sh
+   node ./out/src/cli.js handoff . --include-diff --json
+   ```
+
+3. Verify `.todo-verbose/handoffs/<timestamp>/HANDOFF.md`, `prompt.md`, and `todos.json` exist.
+4. Run:
+
+   ```sh
+   node ./out/src/cli.js handoff . --apply-renumber --include-diff --json
+   ```
+
+5. Verify stale TODO numbers are fixed before the handoff pack is generated.
+6. Install and verify the optional agent skill into a temporary directory:
+
+   ```sh
+   node ./out/src/cli.js agent-skill install . --install-dir /tmp/todo-number-skills --json
+   node ./out/src/cli.js agent-skill verify . --install-dir /tmp/todo-number-skills --json
+   ```

@@ -18,6 +18,14 @@ export function isPathExcluded(
   }
 
   const candidates = getPathCandidates(filePath, workspaceRoots);
+  return isCandidateExcluded(candidates, patterns);
+}
+
+export function isCandidateExcluded(candidates: readonly string[], patterns: readonly string[]): boolean {
+  if (patterns.length === 0) {
+    return false;
+  }
+
   return patterns.some((pattern) => candidates.some((candidate) => matchesGlob(candidate, pattern)));
 }
 

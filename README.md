@@ -10,6 +10,7 @@ A VS Code extension for keeping numbered TODO comments sequential in the current
 - Preserve pinned TODOs such as `TODO #99 [pin]: External tracker`.
 - Exclude generated, vendor, or data dump files with glob patterns.
 - Use the `todo-numbers` CLI from terminals, CI jobs, and coding agents.
+- Generate agent handoff packs, prompt templates, and optional agent skill docs under `.todo-verbose/`.
 
 ## Supported Formats
 
@@ -27,6 +28,8 @@ VS Code commands:
 - `Todo Numbers: Renumber Current File`
 - `Todo Numbers: Insert TODO After Current`
 - `Todo Numbers: Toggle Auto Renumber On Save`
+- `Todo Numbers: Create Agent Handoff`
+- `Todo Numbers: Install Agent Skill`
 
 CLI commands:
 
@@ -34,15 +37,31 @@ CLI commands:
 todo-numbers scan [root]
 todo-numbers check [root]
 todo-numbers fix [root]
+todo-numbers handoff [root]
+todo-numbers agent-skill install [root]
+todo-numbers agent-skill verify [root]
 ```
 
 `scan` prints structured JSON by default. `check` exits with code `1` when renumbering is needed. `fix` applies deterministic number-only edits.
+`handoff` creates `.todo-verbose/handoffs/<timestamp>/` with `HANDOFF.md`, `prompt.md`, `todos.json`, and optional Git diff metadata.
 
 From a source checkout, run the CLI as:
 
 ```sh
 node ./out/src/cli.js scan . --json
 ```
+
+Agent handoff examples:
+
+```sh
+node ./out/src/cli.js handoff . --prompt-only
+node ./out/src/cli.js handoff . --include-diff --json
+node ./out/src/cli.js handoff . --apply-renumber --include-diff --json
+node ./out/src/cli.js agent-skill install . --target claude-code --json
+node ./out/src/cli.js agent-skill verify . --target claude-code --json
+```
+
+The handoff flow writes generated prompt and adapter templates under `.todo-verbose/`, which is gitignored. Agent skill installation is explicit: Marketplace installation does not silently mutate Claude Code, Codex, or other agent configuration.
 
 The `todo-numbers` binary is available when the package is linked or installed through npm-compatible tooling. Installing the VS Code extension from the Marketplace does not automatically add shell commands to `PATH`.
 
@@ -97,9 +116,14 @@ Example exclude configuration:
 
 The CLI also reads `todoNumbers.todoPattern` and `todoNumbers.excludeFiles` from `.vscode/settings.json`.
 
+## License
+
+MIT
+
 Project docs:
 
-- `DESIGN.md`
-- `IMPLEMENTATION_PLAN.md`
-- `VERIFICATION.md`
-- `MARKETPLACE_PUBLISHING.md`
+- `docs/AGENTIC_P1_IMPLEMENTATION.md`
+- `docs/DESIGN.md`
+- `docs/IMPLEMENTATION_PLAN.md`
+- `docs/VERIFICATION.md`
+- `docs/MARKETPLACE_PUBLISHING.md`

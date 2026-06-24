@@ -1,6 +1,7 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { createTodoRegex, DEFAULT_TODO_PATTERN } from "../parser/todoParser";
-import { isPathExcluded } from "../core/pathFilters";
+import { isCandidateExcluded, isPathExcluded } from "../core/pathFilters";
 
 const SECTION = "todoNumbers";
 let hasWarnedAboutInvalidPattern = false;
@@ -53,14 +54,18 @@ export function isUriExcluded(
   patterns: readonly string[],
   workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
 ): boolean {
-  if (patterns.length === 0 || uri.scheme !== "file") {
+  if (patterns.length === 0) {
     return false;
   }
 
-  const workspaceRoots = (workspaceFolders ?? [])
-    .filter((folder) => folder.uri.scheme === "file")
-    .map((folder) => folder.uri.fsPath);
-  return isPathExcluded(uri.fsPath, patterns, workspaceRoots);
+  if (uri.scheme === "file") {
+    const workspaceRoots = (workspaceFolders ?? [])
+      .filter((folder) => folder.uri.scheme === "file")
+      .map((folder) => folder.uri.fsPath);
+    return isPathExcluded(uri.fsPath, patterns, workspaceRoots);
+  }
+
+  return isCandidateExcluded(getUriCandidates(uri, workspaceFolders), patterns);
 }
 
 export async function toggleAutoRenumberOnSave(): Promise<void> {
@@ -91,4 +96,26 @@ function patternMatchesContract(regex: RegExp): boolean {
 
     return Boolean(match?.[1] && /^\d+$/.test(match[1]) && match[2] !== undefined);
   });
+}
+
+function getUriCandidates(
+  uri: vscode.Uri,
+  workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
+): string[] {
+  const candidates = new Set<string>([uri.toString(), uri.path, path.posix.basename(uri.path)]);
+
+  for (const folder of workspaceFolders ?? []) {
+    if (folder.uri.scheme !== uri.scheme || folder.uri.authority !== uri.authority) {
+      continue;
+    }
+
+    const relativePath = path.posix.relative(folder.uri.path, uri.path);
+    if (!relativePath || relativePath.startsWith("..") || path.posix.isAbsolute(relativePath)) {
+      continue;
+    }
+
+    candidates.add(relativePath);
+  }
+
+  return Array.from(candidates);
 }

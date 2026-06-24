@@ -3,8 +3,8 @@
   "displayName": "TODO VS Code Number Bumper",
   "description": "Keep numbered TODO comments sequential in the current VS Code file.",
   "version": "0.1.0",
-  "publisher": "local-dev",
-  "license": "UNLICENSED",
+  "publisher": "kyl33r",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/kyl33r/todo-vscode-number-bumper.git"
@@ -35,6 +35,8 @@
     "onCommand:todoNumbers.renumberCurrentFile",
     "onCommand:todoNumbers.insertTodoAfterCurrent",
     "onCommand:todoNumbers.toggleAutoRenumberOnSave",
+    "onCommand:todoNumbers.createAgentHandoff",
+    "onCommand:todoNumbers.installAgentSkill",
     "onStartupFinished"
   ],
   "main": "./out/src/extension.js",
@@ -54,6 +56,14 @@
       {
         "command": "todoNumbers.toggleAutoRenumberOnSave",
         "title": "Todo Numbers: Toggle Auto Renumber On Save"
+      },
+      {
+        "command": "todoNumbers.createAgentHandoff",
+        "title": "Todo Numbers: Create Agent Handoff"
+      },
+      {
+        "command": "todoNumbers.installAgentSkill",
+        "title": "Todo Numbers: Install Agent Skill"
       }
     ],
     "configuration": {

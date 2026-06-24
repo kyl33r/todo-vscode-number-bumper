@@ -1,5 +1,6 @@
 import * as assert from "node:assert/strict";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
@@ -234,6 +235,58 @@ suite("commands", () => {
     } finally {
       await config.update("autoRenumberOnSave", originalWorkspaceValue, vscode.ConfigurationTarget.Workspace);
     }
+  });
+
+  test("create agent handoff command returns structured JSON-compatible output", async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder, "Expected a workspace folder for command tests.");
+    const rootPath = path.join(folder.uri.fsPath, "agent-handoff-root");
+    fs.mkdirSync(rootPath, { recursive: true });
+    fs.writeFileSync(
+      path.join(rootPath, "agent-handoff.ts"),
+      ["// TODO #1: First", "const value = 42;", "// TODO #3: Third"].join("\n")
+    );
+
+    const result = await vscode.commands.executeCommand<{
+      command: string;
+      ok: boolean;
+      packPath: string;
+      scan: { editsNeeded: number };
+    }>("todoNumbers.createAgentHandoff", {
+      rootPath,
+      includeDiff: false,
+      now: "2026-01-02T03:04:05.000Z",
+      confirm: false
+    });
+
+    assert.equal(result.command, "handoff");
+    assert.equal(result.ok, false);
+    assert.equal(result.scan.editsNeeded, 1);
+    assert.ok(fs.existsSync(path.join(result.packPath, "HANDOFF.md")));
+  });
+
+  test("install agent skill command returns verification details", async () => {
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder, "Expected a workspace folder for command tests.");
+    const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), "todo-numbers-command-skill-"));
+
+    const result = await vscode.commands.executeCommand<{
+      command: string;
+      ok: boolean;
+      verified: boolean;
+      skillPath: string;
+    }>("todoNumbers.installAgentSkill", {
+      rootPath: folder.uri.fsPath,
+      target: "claude-code",
+      installRoot,
+      confirm: false
+    });
+
+    assert.equal(result.command, "agent-skill install");
+    assert.equal(result.ok, true);
+    assert.equal(result.verified, true);
+    assert.equal(result.skillPath, path.join(installRoot, "todo-numbers", "SKILL.md"));
+    assert.match(fs.readFileSync(result.skillPath, "utf8"), /todo-numbers handoff/);
   });
 });
 

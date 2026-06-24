@@ -1,5 +1,7 @@
 node_modules/
 out/
 *.vsix
+*.tgz
 .vscode-test/
 .DS_Store
+.todo-verbose/

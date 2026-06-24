@@ -1,44 +1,39 @@
 #!/usr/bin/env node
-import * as fs from "node:fs";
 import * as path from "node:path";
-import { buildRenumberEdits, type RenumberEdit } from "./core/renumberEngine";
-import { DEFAULT_EXCLUDED_FILE_PATTERNS, isPathExcluded, normalizePath } from "./core/pathFilters";
-import { DEFAULT_TODO_PATTERN, parseTodos, type TodoItem } from "./parser/todoParser";
+import {
+  createAgentHandoff,
+  installAgentSkill,
+  verifyAgentSkill,
+  type AgentHandoffResult,
+  type AgentSkillInstallResult,
+  type AgentSkillTarget,
+  type AgentSkillVerifyResult
+} from "./core/agentHandoff";
+import { DEFAULT_EXCLUDED_FILE_PATTERNS } from "./core/pathFilters";
+import {
+  applyFixes,
+  readWorkspaceSettings,
+  scanWorkspace,
+  type FixResult,
+  type ScanResult
+} from "./core/workspaceTodos";
+import { DEFAULT_TODO_PATTERN } from "./parser/todoParser";
 
-type CliCommand = "scan" | "check" | "fix";
+type CliCommand = "scan" | "check" | "fix" | "handoff" | "agent-skill";
+type AgentSkillAction = "install" | "verify";
 
 type CliOptions = {
   command: CliCommand;
+  agentSkillAction?: AgentSkillAction;
   rootPath: string;
   todoPattern: string;
   excludeFiles: string[];
   json: boolean;
-};
-
-type WorkspaceSettings = {
-  todoPattern?: string;
-  excludeFiles: string[];
-};
-
-type ScannedTodo = {
-  line: number;
-  column: number;
-  number: number;
-  text: string;
-  pinned: boolean;
-};
-
-type ScannedEdit = {
-  line: number;
-  column: number;
-  oldNumber: number;
-  newNumber: number;
-};
-
-type ScannedFile = {
-  file: string;
-  todos: ScannedTodo[];
-  suggestedEdits: ScannedEdit[];
+  promptOnly: boolean;
+  includeDiff: boolean;
+  applyRenumber: boolean;
+  target: AgentSkillTarget;
+  installDir?: string;
 };
 
 type CliResult = {
@@ -47,28 +42,10 @@ type CliResult = {
   stderr: string;
 };
 
-type ScanResult = {
-  root: string;
-  filesScanned: number;
-  filesWithTodos: number;
-  todosFound: number;
-  filesNeedingRenumber: number;
-  editsNeeded: number;
-  files: ScannedFile[];
-};
-
-type FixResult = ScanResult & {
-  filesChanged: number;
-  editsApplied: number;
-};
-
-const TEXT_SAMPLE_BYTES = 4096;
-
 export function executeCli(rawArgs: readonly string[], cwd = process.cwd()): CliResult {
   try {
     const options = parseArgs(rawArgs, cwd);
-    const result = runCommand(options);
-    return result;
+    return runCommand(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -80,7 +57,31 @@ export function executeCli(rawArgs: readonly string[], cwd = process.cwd()): Cli
 }
 
 function runCommand(options: CliOptions): CliResult {
-  const scanResult = scanWorkspace(options);
+  if (options.command === "agent-skill") {
+    return runAgentSkillCommand(options);
+  }
+
+  const workspaceOptions = {
+    rootPath: options.rootPath,
+    todoPattern: options.todoPattern,
+    excludeFiles: options.excludeFiles
+  };
+
+  if (options.command === "handoff") {
+    const result = createAgentHandoff({
+      ...workspaceOptions,
+      promptOnly: options.promptOnly,
+      includeDiff: options.includeDiff,
+      applyRenumber: options.applyRenumber
+    });
+    return {
+      exitCode: result.ok ? 0 : 1,
+      stdout: formatHandoffResult(result, options.json),
+      stderr: ""
+    };
+  }
+
+  const scanResult = scanWorkspace(workspaceOptions);
 
   if (options.command === "scan") {
     return {
@@ -91,7 +92,7 @@ function runCommand(options: CliOptions): CliResult {
   }
 
   if (options.command === "check") {
-    const isClean = scanResult.editsNeeded === 0;
+    const isClean = scanResult.editsNeeded === 0 && scanResult.conflictsFound === 0;
     return {
       exitCode: isClean ? 0 : 1,
       stdout: formatScanResult("check", scanResult, options.json),
@@ -99,7 +100,7 @@ function runCommand(options: CliOptions): CliResult {
     };
   }
 
-  const fixResult = applyFixes(options, scanResult);
+  const fixResult = applyFixes(workspaceOptions, scanResult);
   return {
     exitCode: 0,
     stdout: formatFixResult(fixResult, options.json),
@@ -107,65 +108,28 @@ function runCommand(options: CliOptions): CliResult {
   };
 }
 
-function scanWorkspace(options: CliOptions): ScanResult {
-  const files: ScannedFile[] = [];
-  const filePaths = collectFilePaths(options.rootPath, options.excludeFiles);
-
-  for (const filePath of filePaths) {
-    const content = readTextFile(filePath);
-    if (content === undefined) {
-      continue;
-    }
-
-    const todos = parseTodos(content, options.todoPattern);
-    if (todos.length === 0) {
-      continue;
-    }
-
-    const edits = buildRenumberEdits(todos);
-    files.push({
-      file: normalizePath(path.relative(options.rootPath, filePath)),
-      todos: todos.map(toScannedTodo),
-      suggestedEdits: edits.map(toScannedEdit)
+function runAgentSkillCommand(options: CliOptions): CliResult {
+  if (options.agentSkillAction === "install") {
+    const result = installAgentSkill({
+      rootPath: options.rootPath,
+      target: options.target,
+      installRoot: options.installDir
     });
+    return {
+      exitCode: result.ok ? 0 : 1,
+      stdout: formatAgentSkillInstallResult(result, options.json),
+      stderr: ""
+    };
   }
 
-  const filesNeedingRenumber = files.filter((file) => file.suggestedEdits.length > 0).length;
-  const editsNeeded = files.reduce((count, file) => count + file.suggestedEdits.length, 0);
-
+  const result = verifyAgentSkill({
+    target: options.target,
+    installRoot: options.installDir
+  });
   return {
-    root: normalizePath(options.rootPath),
-    filesScanned: filePaths.length,
-    filesWithTodos: files.length,
-    todosFound: files.reduce((count, file) => count + file.todos.length, 0),
-    filesNeedingRenumber,
-    editsNeeded,
-    files
-  };
-}
-
-function applyFixes(options: CliOptions, scanResult: ScanResult): FixResult {
-  let filesChanged = 0;
-  let editsApplied = 0;
-
-  for (const file of scanResult.files) {
-    if (file.suggestedEdits.length === 0) {
-      continue;
-    }
-
-    const absolutePath = path.join(options.rootPath, file.file);
-    const content = fs.readFileSync(absolutePath, "utf8");
-    const todos = parseTodos(content, options.todoPattern);
-    const edits = buildRenumberEdits(todos);
-    fs.writeFileSync(absolutePath, applyRenumberEditsToContent(content, edits), "utf8");
-    filesChanged += 1;
-    editsApplied += edits.length;
-  }
-
-  return {
-    ...scanResult,
-    filesChanged,
-    editsApplied
+    exitCode: result.ok ? 0 : 1,
+    stdout: formatAgentSkillVerifyResult(result, options.json),
+    stderr: ""
   };
 }
 
@@ -173,13 +137,19 @@ function parseArgs(rawArgs: readonly string[], cwd: string): CliOptions {
   const args = [...rawArgs];
   const command = args.shift();
   if (!isCommand(command)) {
-    throw new Error("Expected command: scan, check, or fix.");
+    throw new Error("Expected command: scan, check, fix, handoff, or agent-skill.");
   }
 
+  const agentSkillAction = readAgentSkillAction(command, args);
   let rootPath = cwd;
   let todoPattern: string | undefined;
   const cliExcludeFiles: string[] = [];
   let json = command === "scan";
+  let promptOnly = false;
+  let includeDiff = false;
+  let applyRenumber = false;
+  let target: AgentSkillTarget = "claude-code";
+  let installDir: string | undefined;
 
   while (args.length > 0) {
     const arg = args.shift();
@@ -207,6 +177,31 @@ function parseArgs(rawArgs: readonly string[], cwd: string): CliOptions {
       continue;
     }
 
+    if (arg === "--prompt-only") {
+      promptOnly = true;
+      continue;
+    }
+
+    if (arg === "--include-diff") {
+      includeDiff = true;
+      continue;
+    }
+
+    if (arg === "--apply-renumber") {
+      applyRenumber = true;
+      continue;
+    }
+
+    if (arg === "--install-dir") {
+      installDir = path.resolve(cwd, readOptionValue("--install-dir", args));
+      continue;
+    }
+
+    if (arg === "--target") {
+      target = readAgentSkillTarget(readOptionValue("--target", args));
+      continue;
+    }
+
     if (arg === "--help" || arg === "-h") {
       throw new Error(usage());
     }
@@ -221,6 +216,7 @@ function parseArgs(rawArgs: readonly string[], cwd: string): CliOptions {
   const workspaceSettings = readWorkspaceSettings(rootPath);
   return {
     command,
+    agentSkillAction,
     rootPath,
     todoPattern: todoPattern ?? workspaceSettings.todoPattern ?? DEFAULT_TODO_PATTERN,
     excludeFiles: [
@@ -228,164 +224,39 @@ function parseArgs(rawArgs: readonly string[], cwd: string): CliOptions {
       ...workspaceSettings.excludeFiles,
       ...cliExcludeFiles
     ],
-    json
+    json,
+    promptOnly,
+    includeDiff,
+    applyRenumber,
+    target,
+    installDir
   };
 }
 
-function collectFilePaths(rootPath: string, excludeFiles: readonly string[]): string[] {
-  const filePaths: string[] = [];
-  const stack = [rootPath];
-
-  while (stack.length > 0) {
-    const currentPath = stack.pop();
-    if (!currentPath || isPathExcluded(currentPath, excludeFiles, [rootPath])) {
-      continue;
-    }
-
-    const stat = fs.statSync(currentPath);
-    if (stat.isDirectory()) {
-      const children = fs
-        .readdirSync(currentPath, { withFileTypes: true })
-        .map((entry) => path.join(currentPath, entry.name))
-        .sort()
-        .reverse();
-
-      stack.push(...children);
-      continue;
-    }
-
-    if (stat.isFile()) {
-      filePaths.push(currentPath);
-    }
+function readAgentSkillAction(command: CliCommand, args: string[]): AgentSkillAction | undefined {
+  if (command !== "agent-skill") {
+    return undefined;
   }
 
-  return filePaths.sort();
-}
-
-function readTextFile(filePath: string): string | undefined {
-  const fileHandle = fs.openSync(filePath, "r");
-  try {
-    const sample = Buffer.alloc(TEXT_SAMPLE_BYTES);
-    const bytesRead = fs.readSync(fileHandle, sample, 0, TEXT_SAMPLE_BYTES, 0);
-    if (sample.subarray(0, bytesRead).includes(0)) {
-      return undefined;
-    }
-  } finally {
-    fs.closeSync(fileHandle);
+  const action = args.shift();
+  if (action === "install" || action === "verify") {
+    return action;
   }
 
-  return fs.readFileSync(filePath, "utf8");
-}
-
-function applyRenumberEditsToContent(content: string, edits: readonly RenumberEdit[]): string {
-  const lineStarts = buildLineStarts(content);
-  let updatedContent = content;
-
-  for (const edit of [...edits].sort((left, right) => {
-    return right.line - left.line || right.start - left.start;
-  })) {
-    const startOffset = lineStarts[edit.line] + edit.start;
-    const endOffset = lineStarts[edit.line] + edit.end;
-    updatedContent = `${updatedContent.slice(0, startOffset)}${edit.newNumber}${updatedContent.slice(endOffset)}`;
-  }
-
-  return updatedContent;
-}
-
-function buildLineStarts(text: string): number[] {
-  const starts = [0];
-
-  for (let index = 0; index < text.length; index += 1) {
-    if (text.charCodeAt(index) === 10) {
-      starts.push(index + 1);
-    }
-  }
-
-  return starts;
-}
-
-function readWorkspaceSettings(rootPath: string): WorkspaceSettings {
-  const settingsPath = path.join(rootPath, ".vscode", "settings.json");
-  if (!fs.existsSync(settingsPath)) {
-    return { excludeFiles: [] };
-  }
-
-  try {
-    const rawSettings = fs.readFileSync(settingsPath, "utf8");
-    const settings = JSON.parse(stripJsonComments(rawSettings)) as Record<string, unknown>;
-    return {
-      todoPattern: typeof settings["todoNumbers.todoPattern"] === "string"
-        ? settings["todoNumbers.todoPattern"]
-        : undefined,
-      excludeFiles: Array.isArray(settings["todoNumbers.excludeFiles"])
-        ? settings["todoNumbers.excludeFiles"].filter((value): value is string => typeof value === "string")
-        : []
-    };
-  } catch {
-    return { excludeFiles: [] };
-  }
-}
-
-function stripJsonComments(value: string): string {
-  let output = "";
-  let inString = false;
-  let escaped = false;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    const nextChar = value[index + 1];
-
-    if (inString) {
-      output += char;
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === "\"") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === "\"") {
-      inString = true;
-      output += char;
-      continue;
-    }
-
-    if (char === "/" && nextChar === "/") {
-      while (index < value.length && value[index] !== "\n") {
-        index += 1;
-      }
-      output += "\n";
-      continue;
-    }
-
-    if (char === "/" && nextChar === "*") {
-      index += 2;
-      while (index < value.length && !(value[index] === "*" && value[index + 1] === "/")) {
-        index += 1;
-      }
-      index += 1;
-      continue;
-    }
-
-    output += char;
-  }
-
-  return output.replace(/,\s*([}\]])/g, "$1");
+  throw new Error("Expected agent-skill action: install or verify.");
 }
 
 function formatScanResult(command: "scan" | "check", result: ScanResult, json: boolean): string {
+  const ok = result.editsNeeded === 0 && result.conflictsFound === 0;
   if (json) {
-    return `${JSON.stringify({ command, ok: result.editsNeeded === 0, ...result }, null, 2)}\n`;
+    return `${JSON.stringify({ command, ok, ...result }, null, 2)}\n`;
   }
 
-  if (result.editsNeeded === 0) {
+  if (ok) {
     return `Todo Numbers: ${result.todosFound} TODO(s) found across ${result.filesWithTodos} file(s); numbering is clean.\n`;
   }
 
-  return `Todo Numbers: ${result.editsNeeded} renumber edit(s) needed across ${result.filesNeedingRenumber} file(s).\n`;
+  return `Todo Numbers: ${result.editsNeeded} renumber edit(s) and ${result.conflictsFound} conflict(s) found across ${result.filesNeedingRenumber} file(s).\n`;
 }
 
 function formatFixResult(result: FixResult, json: boolean): string {
@@ -396,27 +267,49 @@ function formatFixResult(result: FixResult, json: boolean): string {
   return `Todo Numbers: applied ${result.editsApplied} edit(s) across ${result.filesChanged} file(s).\n`;
 }
 
-function toScannedTodo(todo: TodoItem): ScannedTodo {
-  return {
-    line: todo.line + 1,
-    column: todo.numberStart + 1,
-    number: todo.number,
-    text: todo.text,
-    pinned: todo.pinned
-  };
+function formatHandoffResult(result: AgentHandoffResult, json: boolean): string {
+  if (json) {
+    return `${JSON.stringify(result, null, 2)}\n`;
+  }
+
+  if (!result.packPath) {
+    return result.prompt;
+  }
+
+  const state = result.ok ? "ready" : "needs attention";
+  return `Todo Numbers: created handoff pack at ${result.packPath}; numbering state ${state}.\n`;
 }
 
-function toScannedEdit(edit: RenumberEdit): ScannedEdit {
-  return {
-    line: edit.line + 1,
-    column: edit.start + 1,
-    oldNumber: edit.oldNumber,
-    newNumber: edit.newNumber
-  };
+function formatAgentSkillInstallResult(result: AgentSkillInstallResult, json: boolean): string {
+  if (json) {
+    return `${JSON.stringify(result, null, 2)}\n`;
+  }
+
+  return result.ok
+    ? `Todo Numbers: installed ${result.target} agent skill at ${result.skillPath}.\n`
+    : `Todo Numbers: wrote ${result.target} agent skill at ${result.skillPath}, but verification failed.\n`;
+}
+
+function formatAgentSkillVerifyResult(result: AgentSkillVerifyResult, json: boolean): string {
+  if (json) {
+    return `${JSON.stringify(result, null, 2)}\n`;
+  }
+
+  return result.ok
+    ? `Todo Numbers: verified ${result.target} agent skill at ${result.skillPath}.\n`
+    : `Todo Numbers: could not verify ${result.target} agent skill at ${result.skillPath}: ${result.reason ?? "unknown reason"}.\n`;
 }
 
 function isCommand(value: string | undefined): value is CliCommand {
-  return value === "scan" || value === "check" || value === "fix";
+  return value === "scan" || value === "check" || value === "fix" || value === "handoff" || value === "agent-skill";
+}
+
+function readAgentSkillTarget(value: string): AgentSkillTarget {
+  if (value === "claude-code" || value === "codex" || value === "generic") {
+    return value;
+  }
+
+  throw new Error(`Unknown agent skill target: ${value}.`);
 }
 
 function readOptionValue(option: string, args: string[]): string {
@@ -433,13 +326,19 @@ function splitPatterns(value: string): string[] {
 
 function usage(): string {
   return [
-    "Usage: todo-numbers <scan|check|fix> [root] [options]",
+    "Usage: todo-numbers <scan|check|fix|handoff> [root] [options]",
+    "       todo-numbers agent-skill <install|verify> [root] [options]",
     "",
     "Options:",
     "  --json                Print JSON output.",
     "  --no-json             Print a compact human-readable summary.",
     "  --pattern <regex>     Override the TODO regex.",
     "  --exclude <glob>      Add an exclude glob. Can be repeated or comma-separated.",
+    "  --prompt-only         For handoff, print only the takeover prompt and write no files.",
+    "  --include-diff        For handoff, include Git branch, commit, dirty files, and diff summary.",
+    "  --apply-renumber      For handoff, apply deterministic renumbering before generating the pack.",
+    "  --target <name>       Agent skill target: claude-code, codex, or generic.",
+    "  --install-dir <path>  Agent skill install root for install or verify.",
     "  -h, --help            Show this help text."
   ].join("\n");
 }

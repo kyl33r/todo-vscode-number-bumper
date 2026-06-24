@@ -1,4 +1,9 @@
 import * as vscode from "vscode";
+import {
+  createAgentHandoffCommand,
+  installAgentSkillCommand,
+  maybeShowAgentIntegrationSetup
+} from "./commands/agentCommands";
 import { insertTodoAfterCurrent } from "./commands/insertTodo";
 import { renumberCurrentFile, renumberDocument } from "./commands/renumberCurrentFile";
 import { isAutoRenumberOnSaveEnabled, toggleAutoRenumberOnSave } from "./config/settings";
@@ -10,8 +15,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("todoNumbers.renumberCurrentFile", renumberCurrentFile),
     vscode.commands.registerCommand("todoNumbers.insertTodoAfterCurrent", insertTodoAfterCurrent),
     vscode.commands.registerCommand("todoNumbers.toggleAutoRenumberOnSave", toggleAutoRenumberOnSave),
+    vscode.commands.registerCommand("todoNumbers.createAgentHandoff", createAgentHandoffCommand),
+    vscode.commands.registerCommand("todoNumbers.installAgentSkill", installAgentSkillCommand),
     vscode.workspace.onDidSaveTextDocument(handleSavedDocument)
   );
+
+  void maybeShowAgentIntegrationSetup(context);
 }
 
 export function deactivate(): void {

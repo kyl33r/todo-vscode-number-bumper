@@ -2,6 +2,13 @@
 
 This file tracks product and implementation work for the TODO VS Code Number Bumper extension.
 
+## NEXT
+
+- Commit the current agentic feature work with a `feat:` prefix.
+- Push `main` after the final verification pass.
+- Verify or create Marketplace publisher `kyl33r` in the browser before public publishing.
+- Publish to the VS Code Marketplace after authentication and final verification.
+
 ## DONE
 
 ### P0
@@ -32,21 +39,6 @@ This file tracks product and implementation work for the TODO VS Code Number Bum
 - Add dry-run renumbering that returns a structured edit plan without mutating files.
 - Add CLI output as structured JSON for agent callers.
 - Add workspace-level TODO scanning while still respecting `todoNumbers.excludeFiles`.
-
-### P2
-
-- Add project design and implementation plan docs.
-- Add support and changelog docs.
-
-## NOT DONE
-
-### P0
-
-- Replace placeholder Marketplace publisher `local-dev` with the real publisher ID before public release.
-- Decide and apply the public license before Marketplace publishing.
-
-### P1
-
 - Add `todo-numbers handoff` to generate an agent handoff pack.
 - Add `todo-numbers handoff --prompt-only` to print a ready-to-use prompt for the current coding agent.
 - Add `todo-numbers handoff --include-diff` to include Git branch, commit, dirty files, and diff summary.
@@ -62,10 +54,38 @@ This file tracks product and implementation work for the TODO VS Code Number Bum
 - Do not silently install or mutate external agent configuration during VS Code Marketplace installation; require an explicit command or confirmation.
 - Add VS Code command/API output as structured JSON for agent callers.
 - Add merge/conflict helpers to detect duplicate, stale, or conflicting TODO numbers after parallel agent work.
+- Fix review finding: preserve excludes for remote workspace document URIs.
+- Fix review finding: skip symlinked files and directories during CLI scans and fixes.
+- Replace placeholder package publisher metadata with `kyl33r`.
+- Apply the MIT license and add a root `LICENSE` file.
+- Verify the full isolated VS Code Electron suite after package metadata and docs changes.
+- Verify production dependency audit with `npm audit --omit=dev`.
+- Verify package contents with `npm run package:list`.
+- Verify VSIX packaging with `npm run package`.
+- Verify local VSIX install as `kyl33r.todo-vscode-number-bumper@0.1.0`.
+- Remove the stale `local-dev.todo-vscode-number-bumper` local VS Code test install.
 
 ### P2
 
+- Add project design and implementation plan docs.
+- Add support and changelog docs.
 - Add `.todo-verbose/` as a gitignored directory for local verbose TODO handoff specs.
+- Add a P1 agentic implementation explainer under `docs/`.
+
+## NOT DONE
+
+### P0
+
+- Verify or create Marketplace publisher `kyl33r`.
+- Create or provide a Marketplace publishing credential with Marketplace `Manage` scope.
+- Publish the first public Marketplace release.
+
+### P1
+
+- None currently tracked.
+
+### P2
+
 - Add `.todo-verbose/index.json` mapping inline TODOs to verbose Markdown specs.
 - Add stable TODO IDs, for example `TODO #3 [id:insert-placeholder-selection]: Fix placeholder selection`.
 - Add `todo-numbers verbose init` to create `.todo-verbose/`.

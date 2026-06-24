@@ -1,0 +1,96 @@
+{
+  "name": "todo-vscode-number-bumper",
+  "displayName": "TODO VS Code Number Bumper",
+  "description": "Keep numbered TODO comments sequential in the current VS Code file.",
+  "version": "0.1.0",
+  "publisher": "local-dev",
+  "license": "UNLICENSED",
+  "keywords": [
+    "todo",
+    "comments",
+    "numbering",
+    "renumber",
+    "productivity"
+  ],
+  "galleryBanner": {
+    "color": "#2B6CB0",
+    "theme": "dark"
+  },
+  "pricing": "Free",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:todoNumbers.renumberCurrentFile",
+    "onCommand:todoNumbers.insertTodoAfterCurrent",
+    "onCommand:todoNumbers.toggleAutoRenumberOnSave",
+    "onStartupFinished"
+  ],
+  "main": "./out/src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "todoNumbers.renumberCurrentFile",
+        "title": "Todo Numbers: Renumber Current File"
+      },
+      {
+        "command": "todoNumbers.insertTodoAfterCurrent",
+        "title": "Todo Numbers: Insert TODO After Current"
+      },
+      {
+        "command": "todoNumbers.toggleAutoRenumberOnSave",
+        "title": "Todo Numbers: Toggle Auto Renumber On Save"
+      }
+    ],
+    "configuration": {
+      "title": "Todo Numbers",
+      "properties": {
+        "todoNumbers.autoRenumberOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Renumber numbered TODO comments when a document is saved."
+        },
+        "todoNumbers.todoPattern": {
+          "type": "string",
+          "default": "TODO\\s+#(\\d+)(\\s+\\[pin\\])?:\\s*(.*?)\\s*(?:-->)?$",
+          "description": "Regex for numbered TODOs. Group 1 must capture the number, group 2 the optional [pin] marker, and group 3 the TODO text."
+        },
+        "todoNumbers.insertPlaceholder": {
+          "type": "string",
+          "default": "New TODO",
+          "description": "Placeholder text used by the insert TODO command."
+        },
+        "todoNumbers.excludeFiles": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns for files that Todo Numbers should ignore, such as generated data dumps or vendor files."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package --allow-missing-repository",
+    "package:list": "vsce ls",
+    "publish:marketplace": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.17.10",
+    "@types/vscode": "^1.92.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.2.1",
+    "mocha": "^10.8.2",
+    "typescript": "^5.7.2"
+  }
+}

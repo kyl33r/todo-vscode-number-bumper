@@ -8,3 +8,6 @@
 - Add pinned TODO support with `[pin]`.
 - Add `todoNumbers.excludeFiles` for generated files, vendor paths, and data dumps that should be ignored.
 - Add parser, renumber engine, and VS Code command tests.
+- Fix extension-host test runner so it uses `@vscode/test-electron` resolution instead of the `code` CLI wrapper.
+- Fix custom anchored TODO regex validation.
+- Fix inserted placeholder selection for placeholder text such as `TODO`.

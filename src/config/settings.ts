@@ -73,11 +73,22 @@ export async function toggleAutoRenumberOnSave(): Promise<void> {
 }
 
 function patternMatchesContract(regex: RegExp): boolean {
-  regex.lastIndex = 0;
-  const match = regex.exec("TODO #1 [pin]: Example");
-  regex.lastIndex = 0;
+  const samples = [
+    "TODO #1 [pin]: Example",
+    "// TODO #1 [pin]: Example",
+    "  // TODO #1 [pin]: Example",
+    "# TODO #1 [pin]: Example",
+    "  # TODO #1 [pin]: Example",
+    "<!-- TODO #1 [pin]: Example -->"
+  ];
 
-  return Boolean(match?.[1] && match[2] !== undefined);
+  return samples.some((sample) => {
+    regex.lastIndex = 0;
+    const match = regex.exec(sample);
+    regex.lastIndex = 0;
+
+    return Boolean(match?.[1] && /^\d+$/.test(match[1]) && match[2] !== undefined);
+  });
 }
 
 function getPathCandidates(

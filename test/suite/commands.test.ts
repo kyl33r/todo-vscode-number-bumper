@@ -43,6 +43,35 @@ suite("commands", () => {
     );
   });
 
+  test("renumber command accepts anchored custom comment-only patterns", async () => {
+    const config = vscode.workspace.getConfiguration("todoNumbers");
+    await config.update(
+      "todoPattern",
+      String.raw`^\s*//\s+TODO\s+#(\d+)(\s+\[pin\])?:\s*(.*?)$`,
+      vscode.ConfigurationTarget.Workspace
+    );
+    const editor = await openUntitledEditor(
+      [
+        "const fixture = 'TODO #99: data dump value';",
+        "// TODO #1: One",
+        "const value = 42;",
+        "// TODO #4: Four"
+      ].join("\n")
+    );
+
+    await vscode.commands.executeCommand("todoNumbers.renumberCurrentFile");
+
+    assert.equal(
+      editor.document.getText(),
+      [
+        "const fixture = 'TODO #99: data dump value';",
+        "// TODO #1: One",
+        "const value = 42;",
+        "// TODO #2: Four"
+      ].join("\n")
+    );
+  });
+
   for (const sample of [
     ["Python", "python.input.py", "python.expected.py"],
     ["Go", "go.input.go", "go.expected.go"],
@@ -90,6 +119,18 @@ suite("commands", () => {
       "// TODO #1: One\n// TODO #2: Two\n// TODO #3: New TODO\n// TODO #4: Three"
     );
     assert.equal(editor.document.getText(editor.selection), "New TODO");
+  });
+
+  test("insert command selects custom placeholder text instead of the TODO marker", async () => {
+    const config = vscode.workspace.getConfiguration("todoNumbers");
+    await config.update("insertPlaceholder", "TODO", vscode.ConfigurationTarget.Workspace);
+    const editor = await openUntitledEditor("// TODO #1: One");
+
+    await vscode.commands.executeCommand("todoNumbers.insertTodoAfterCurrent");
+
+    assert.equal(editor.document.getText(), "// TODO #1: One\n// TODO #2: TODO");
+    assert.equal(editor.document.getText(editor.selection), "TODO");
+    assert.equal(editor.selection.start.character, editor.document.lineAt(1).text.lastIndexOf("TODO"));
   });
 
   test("insert command works when the cursor is on code between TODOs", async () => {

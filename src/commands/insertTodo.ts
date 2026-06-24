@@ -19,6 +19,12 @@ type InsertionPlan = {
   placeholderEnd: number;
 };
 
+type BuiltTodoLine = {
+  text: string;
+  placeholderStart: number;
+  placeholderEnd: number;
+};
+
 export async function insertTodoAfterCurrent(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
 
@@ -57,8 +63,26 @@ export async function insertTodoAfterCurrent(): Promise<void> {
 }
 
 export function buildTodoLine(lineText: string, number: number, placeholder: string): string {
+  return buildTodoLineWithRange(lineText, number, placeholder).text;
+}
+
+function buildTodoLineWithRange(lineText: string, number: number, placeholder: string): BuiltTodoLine {
   const style = inferTodoLineStyle(lineText);
-  return `${style.indent}${style.prefix}TODO #${number}: ${placeholder}${style.suffix}`;
+  const beforePlaceholder = `${style.indent}${style.prefix}TODO #${number}: `;
+  return {
+    text: `${beforePlaceholder}${placeholder}${style.suffix}`,
+    placeholderStart: beforePlaceholder.length,
+    placeholderEnd: beforePlaceholder.length + placeholder.length
+  };
+}
+
+function buildDefaultTodoLineWithRange(lineText: string, number: number, placeholder: string): BuiltTodoLine {
+  const beforePlaceholder = `${getIndent(lineText)}// TODO #${number}: `;
+  return {
+    text: `${beforePlaceholder}${placeholder}`,
+    placeholderStart: beforePlaceholder.length,
+    placeholderEnd: beforePlaceholder.length + placeholder.length
+  };
 }
 
 function buildInsertionPlan(
@@ -72,23 +96,22 @@ function buildInsertionPlan(
   const lineText = nearestTodo ? document.lineAt(nearestTodo.line).text : document.lineAt(cursorLine).text;
   const insertedNumber = countUnpinnedTodosAtOrBefore(todos, insertAfterLine) + 1;
   const todoLine = nearestTodo
-    ? buildTodoLine(lineText, insertedNumber, placeholder)
-    : `${getIndent(lineText)}// TODO #${insertedNumber}: ${placeholder}`;
+    ? buildTodoLineWithRange(lineText, insertedNumber, placeholder)
+    : buildDefaultTodoLineWithRange(lineText, insertedNumber, placeholder);
   const eol = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
   const isLastLine = insertAfterLine >= document.lineCount - 1;
   const position = isLastLine
     ? document.lineAt(insertAfterLine).range.end
     : new vscode.Position(insertAfterLine + 1, 0);
-  const text = isLastLine ? `${eol}${todoLine}` : `${todoLine}${eol}`;
-  const placeholderStart = todoLine.indexOf(placeholder);
+  const text = isLastLine ? `${eol}${todoLine.text}` : `${todoLine.text}${eol}`;
 
   return {
     position,
     text,
     insertedLine: insertAfterLine + 1,
     insertedNumber,
-    placeholderStart,
-    placeholderEnd: placeholderStart + placeholder.length
+    placeholderStart: todoLine.placeholderStart,
+    placeholderEnd: todoLine.placeholderEnd
   };
 }
 

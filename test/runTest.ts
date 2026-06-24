@@ -7,14 +7,17 @@ async function main(): Promise<void> {
   const extensionDevelopmentPath = path.resolve(__dirname, "../..");
   const extensionTestsPath = path.resolve(__dirname, "./suite/index");
   const workspacePath = fs.mkdtempSync(path.join(os.tmpdir(), "todo-numbers-test-"));
-  const vscodeExecutablePath = process.env.VSCODE_EXECUTABLE_PATH ?? "/usr/local/bin/code";
-
-  await runTests({
+  const options: Parameters<typeof runTests>[0] = {
     extensionDevelopmentPath,
     extensionTestsPath,
-    vscodeExecutablePath,
     launchArgs: [workspacePath, "--disable-workspace-trust"]
-  });
+  };
+
+  if (process.env.VSCODE_EXECUTABLE_PATH) {
+    options.vscodeExecutablePath = process.env.VSCODE_EXECUTABLE_PATH;
+  }
+
+  await runTests(options);
 }
 
 main().catch((error) => {

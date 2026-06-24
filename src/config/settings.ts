@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import * as path from "node:path";
 import { createTodoRegex, DEFAULT_TODO_PATTERN } from "../parser/todoParser";
+import { isPathExcluded } from "../core/pathFilters";
 
 const SECTION = "todoNumbers";
 let hasWarnedAboutInvalidPattern = false;
@@ -53,12 +53,14 @@ export function isUriExcluded(
   patterns: readonly string[],
   workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
 ): boolean {
-  if (patterns.length === 0) {
+  if (patterns.length === 0 || uri.scheme !== "file") {
     return false;
   }
 
-  const candidates = getPathCandidates(uri, workspaceFolders);
-  return patterns.some((pattern) => candidates.some((candidate) => matchesGlob(candidate, pattern)));
+  const workspaceRoots = (workspaceFolders ?? [])
+    .filter((folder) => folder.uri.scheme === "file")
+    .map((folder) => folder.uri.fsPath);
+  return isPathExcluded(uri.fsPath, patterns, workspaceRoots);
 }
 
 export async function toggleAutoRenumberOnSave(): Promise<void> {
@@ -89,82 +91,4 @@ function patternMatchesContract(regex: RegExp): boolean {
 
     return Boolean(match?.[1] && /^\d+$/.test(match[1]) && match[2] !== undefined);
   });
-}
-
-function getPathCandidates(
-  uri: vscode.Uri,
-  workspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
-): string[] {
-  const absolutePath = normalizePath(uri.scheme === "file" ? uri.fsPath : uri.toString());
-  const candidates = new Set<string>([absolutePath, path.posix.basename(absolutePath)]);
-
-  if (uri.scheme === "file") {
-    for (const folder of workspaceFolders ?? []) {
-      if (folder.uri.scheme !== "file") {
-        continue;
-      }
-
-      const relativePath = normalizePath(path.relative(folder.uri.fsPath, uri.fsPath));
-      if (relativePath && !relativePath.startsWith("..")) {
-        candidates.add(relativePath);
-      }
-    }
-  }
-
-  return Array.from(candidates);
-}
-
-function matchesGlob(candidate: string, rawPattern: string): boolean {
-  const pattern = normalizePath(rawPattern.trim());
-  if (!pattern) {
-    return false;
-  }
-
-  return globToRegExp(pattern).test(candidate);
-}
-
-function globToRegExp(pattern: string): RegExp {
-  let index = 0;
-  let source = "^";
-
-  if (pattern.startsWith("**/")) {
-    source += "(?:.*/)?";
-    index = 3;
-  }
-
-  while (index < pattern.length) {
-    const char = pattern[index];
-    const nextChar = pattern[index + 1];
-
-    if (char === "*" && nextChar === "*") {
-      source += ".*";
-      index += 2;
-      continue;
-    }
-
-    if (char === "*") {
-      source += "[^/]*";
-      index += 1;
-      continue;
-    }
-
-    if (char === "?") {
-      source += "[^/]";
-      index += 1;
-      continue;
-    }
-
-    source += escapeRegExp(char);
-    index += 1;
-  }
-
-  return new RegExp(`${source}$`);
-}
-
-function normalizePath(value: string): string {
-  return value.replace(/\\/g, "/");
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
 }

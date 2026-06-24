@@ -16,13 +16,21 @@ Use this checklist after code changes to verify the extension and prove it can b
    npm run compile
    ```
 
-3. Run the extension test suite:
+3. Run the full isolated VS Code Electron test suite:
 
    ```sh
    npm test
    ```
 
-4. Package a local VSIX:
+4. The test runner creates a temporary workspace, user-data directory, and extensions directory for the VS Code Electron instance. CLI tests, parser tests, renumber engine tests, and VS Code command tests all run inside that extension-host process.
+
+5. Run CLI tests directly only when debugging the CLI outside VS Code:
+
+   ```sh
+   node ./out/src/cli.js scan . --json
+   ```
+
+6. Package a local VSIX:
 
    ```sh
    npm run package

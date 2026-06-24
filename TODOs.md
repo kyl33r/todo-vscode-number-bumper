@@ -24,6 +24,14 @@ This file tracks product and implementation work for the TODO VS Code Number Bum
 - Add local VS Code install verification steps.
 - Add production dependency audit step.
 - Add package metadata for repository, homepage, and issue tracker.
+- Add a CLI entry point that does not require VS Code.
+- Add `todo-numbers scan` to output tracked TODOs as JSON.
+- Add `todo-numbers check` for CI/agent validation.
+- Add `todo-numbers fix` for deterministic renumbering from the terminal.
+- Add code-level configurable CLI entrypoint through `todo-numbers.config.json`.
+- Add dry-run renumbering that returns a structured edit plan without mutating files.
+- Add CLI output as structured JSON for agent callers.
+- Add workspace-level TODO scanning while still respecting `todoNumbers.excludeFiles`.
 
 ### P2
 
@@ -39,10 +47,6 @@ This file tracks product and implementation work for the TODO VS Code Number Bum
 
 ### P1
 
-- Add a CLI entry point that does not require VS Code.
-- Add `todo-numbers scan` to output tracked TODOs as JSON.
-- Add `todo-numbers check` for CI/agent validation.
-- Add `todo-numbers fix` for deterministic renumbering from the terminal.
 - Add `todo-numbers handoff` to generate an agent handoff pack.
 - Add `todo-numbers handoff --prompt-only` to print a ready-to-use prompt for the current coding agent.
 - Add `todo-numbers handoff --include-diff` to include Git branch, commit, dirty files, and diff summary.
@@ -56,9 +60,7 @@ This file tracks product and implementation work for the TODO VS Code Number Bum
 - Add a generated agent prompt template for taking over work from `.todo-verbose/` and handoff packs.
 - Add install verification for agent integrations so users can confirm the skill/tool is available to their agent.
 - Do not silently install or mutate external agent configuration during VS Code Marketplace installation; require an explicit command or confirmation.
-- Add dry-run renumbering that returns a structured edit plan without mutating files.
-- Add command/API output as structured JSON for agent callers.
-- Add workspace-level TODO scanning while still respecting `todoNumbers.excludeFiles`.
+- Add VS Code command/API output as structured JSON for agent callers.
 - Add merge/conflict helpers to detect duplicate, stale, or conflicting TODO numbers after parallel agent work.
 
 ### P2

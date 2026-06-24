@@ -38,6 +38,9 @@
     "onStartupFinished"
   ],
   "main": "./out/src/extension.js",
+  "bin": {
+    "todo-numbers": "./out/src/cli.js"
+  },
   "contributes": {
     "commands": [
       {
@@ -83,10 +86,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "sync:cli-entrypoint": "node scripts/sync-cli-entrypoint.js",
+    "vscode:prepublish": "npm run sync:cli-entrypoint && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile",
+    "pretest": "npm run sync:cli-entrypoint && npm run compile",
     "test": "node ./out/test/runTest.js",
     "package": "vsce package",
     "package:list": "vsce ls",
